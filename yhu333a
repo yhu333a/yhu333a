@@ -1,0 +1,30 @@
+# 启动节点
+sudo tee <<EOF >/dev/null /etc/systemd/system/nibid.service
+[Unit]
+Description=nibid daemon
+After=network-online.target
+[Service]
+User=$USER
+ExecStart=$(which nibid) start
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=10000
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload && \
+sudo systemctl enable nibid && \
+sudo systemctl start nibid
+
+# 使用Snapshot同步
+cd $HOME
+sudo snap install lz4
+sudo systemctl stop nibid
+cp $HOME/.nibid/data/priv_validator_state.json $HOME/.nibid/priv_validator_state.json.backup
+rm -rf $HOME/.nibid/data
+curl -L https://snapshots.kjnodes.com/nibiru-testnet/snapshot_latest.tar.lz4 | tar -Ilz4 -xf - -C $HOME/.nibid
+mv $HOME/.nibid/priv_validator_state.json.backup $HOME/.nibid/data/priv_validator_state.json
+sudo systemctl start nibid && sudo journalctl -u nibid -f --no-hostname -o cat
+
+
